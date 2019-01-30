@@ -4,3 +4,6 @@ pandas
 keras
 jupyter
 matplotlib
+scipy
+skimage
+googledrivedownloader
