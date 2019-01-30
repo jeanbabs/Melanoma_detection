@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 
@@ -6,6 +7,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import recall_score, roc_curve 
 
 import rampwf as rw
+from rampwf.score_types.base import BaseScoreType
 from rampwf.score_types.classifier_base import ClassifierBaseScoreType
 
 # Problem title
@@ -58,8 +60,27 @@ class Specificity(ClassifierBaseScoreType):
         score = recall_score(
             y_true, y_pred, average=None)[0]
         return score
-    
-class Mixed(ClassifierBaseScoreType):
+"""
+
+""" 
+class SpecificityAtGoodRecall(BaseScoreType):
+    is_lower_the_better = False
+    minimum = 0.0
+    maximum = 1.0
+
+    def __init__(self, name='spe@97', precision=2):
+        self.name = name
+        self.precision = precision
+
+    def __call__(self, y_true, y_pred):
+        fpr, tpr, _ = roc_curve(np.argmax(y_true, axis=1), y_pred[:, 0])
+        index = np.argmax(tpr >= 0.97)
+        return 1 - fpr[index]
+
+"""
+Mixed score: weighted average of all the presented metrics
+"""
+class Mixed(BaseScoreType):
     is_lower_the_better = True
     minimum = 0.0
     maximum = np.inf
@@ -71,18 +92,22 @@ class Mixed(ClassifierBaseScoreType):
         self.specificity = Specificity()
         self.accuracy = rw.score_types.Accuracy(name='acc')
         self.rocauc = rw.score_types.ROCAUC(name='auc')
+        self.spec_good_recall = SpecificityAtGoodRecall()
 
     def __call__(self, y_true, y_pred):
-        rec = self.recall(y_true, y_pred)
-        spe = self.specificity(y_true, y_pred)
-        acc = self.accuracy(y_true, y_pred)
+        hard_true = np.argmax(y_true, axis=1)
+        hard_pred = np.argmax(y_pred, axis=1)
+        rec = self.recall(hard_true, hard_pred)
+        spe = self.specificity(hard_true, hard_pred)
+        spegr = self.spec_good_recall(y_true, y_pred)
+        acc = self.accuracy(hard_true, hard_pred)
         auc = self.rocauc(y_true, y_pred)
-        avg = (rec + spe + acc + 2 * auc) / 5
+        avg = (rec + spe + acc + 2 * auc + 3 * spegr) / 8
         return 1 - avg
     
 score_types = [
     Mixed(),
-    # SpecificityAtGoodRecall(),
+    SpecificityAtGoodRecall(),
     rw.score_types.ROCAUC(name='auc'),
     Recall(),
     Specificity(),
@@ -126,8 +151,8 @@ def _read_data(path, typ):
                       "obtain the train/test data".format(typ))
 
     if test:
-        return pd.concat([X_df[:30], X_df[-30:]]), np.concatenate((y_array[:30],
-                        y_array[-30:]))
+        return pd.concat([X_df[:15], X_df[-15:]]), np.concatenate((y_array[:15],
+                        y_array[-15:]))
     else:
         return X_df, y_array
 
