@@ -1,5 +1,4 @@
 import os
-import sys
 import numpy as np
 import pandas as pd
 
@@ -61,7 +60,7 @@ class Specificity(ClassifierBaseScoreType):
             y_true, y_pred, average=None)[0]
         return score
 """
-
+1-Complementary of the FPR at threshold yielding 97% TPR
 """ 
 class SpecificityAtGoodRecall(BaseScoreType):
     is_lower_the_better = False

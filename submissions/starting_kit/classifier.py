@@ -1,4 +1,3 @@
-from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.base import BaseEstimator
 
